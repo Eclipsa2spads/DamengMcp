@@ -1,0 +1,18 @@
+# Local secrets and runtime state
+.env
+.env.linux
+*.pid
+logs/
+dist/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Editors and OS
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

@@ -1,0 +1,27 @@
+[Unit]
+Description=Axis Dameng MCP Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dameng-mcp
+Group=dameng-mcp
+WorkingDirectory=/opt/axis-dameng-mcp/app
+Environment=MCP_ENV_FILE=/etc/axis-dameng-mcp/axis-dameng-mcp.env
+# The dmPython wheel bundles its own DPI client and DM SSL libraries.
+Environment=LD_LIBRARY_PATH=/opt/axis-dameng-mcp/python/lib/python3.11/site-packages/dmssl
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/axis-dameng-mcp/python/bin/python /opt/axis-dameng-mcp/app/server.py
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=45
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

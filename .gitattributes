@@ -1,0 +1,8 @@
+# Shell, systemd and env templates must keep LF endings on every platform
+*.sh text eol=lf
+*.service text eol=lf
+.env.example text eol=lf
+.env.linux-native.example text eol=lf
+
+# PowerShell scripts are authored and run with CRLF on Windows
+*.ps1 text eol=crlf
