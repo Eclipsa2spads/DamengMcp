@@ -28,6 +28,10 @@ grep -qE '^DM_HOST=.+$' "${config_source}" || die "DM_HOST is missing or empty."
 grep -qE '^DM_PASSWORD=.+$' "${config_source}" || die "DM_PASSWORD is missing or empty."
 grep -qE '^DM_PASSWORD=replace-me[[:space:]]*$' "${config_source}" && die "Replace the example Dameng password before installation."
 
+mcp_port="$(grep -E '^MCP_PORT=' "${config_source}" | tail -n 1 | cut -d= -f2 | tr -d '[:space:]')"
+mcp_port="${mcp_port:-8082}"
+[[ "${mcp_port}" =~ ^[0-9]+$ ]] && (( mcp_port >= 1 && mcp_port <= 65535 )) || die "MCP_PORT must be a valid TCP port."
+
 for required in \
     vendor/Miniconda3-py311_24.3.0-0-Linux-x86_64.sh \
     app/server.py app/requirements.txt \
@@ -36,7 +40,7 @@ for required in \
 done
 
 step "Checking CentOS 7 host and bundle integrity"
-bash "${bundle_root}/scripts/check-linux-native-host.sh"
+MCP_PORT="${mcp_port}" bash "${bundle_root}/scripts/check-linux-native-host.sh"
 
 if systemctl is-active --quiet "${service_name}" 2>/dev/null; then
     step "Stopping the existing service for an in-place update"
@@ -110,7 +114,7 @@ fi
 
 deadline=$((SECONDS + 30))
 until "${python_root}/bin/python" "${app_root}/scripts/probe_mcp.py" \
-    --url http://127.0.0.1:8082/mcp --call >/dev/null 2>&1; do
+    --url "http://127.0.0.1:${mcp_port}/mcp" --call >/dev/null 2>&1; do
     if (( SECONDS >= deadline )); then
         journalctl -u "${service_name}" -n 100 --no-pager >&2 || true
         die "The MCP endpoint did not become ready within 30 seconds."
@@ -120,6 +124,6 @@ done
 
 host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
 echo "[OK] Axis Dameng MCP native service is running."
-echo "[OK] Streamable HTTP: http://${host_ip:-127.0.0.1}:8082/mcp"
-echo "[OK] HTTP+SSE:       http://${host_ip:-127.0.0.1}:8082/sse"
+echo "[OK] Streamable HTTP: http://${host_ip:-127.0.0.1}:${mcp_port}/mcp"
+echo "[OK] HTTP+SSE:       http://${host_ip:-127.0.0.1}:${mcp_port}/sse"
 echo "[INFO] Manage it with: axis-dameng-mcp {status|logs|check|probe|restart|stop}"

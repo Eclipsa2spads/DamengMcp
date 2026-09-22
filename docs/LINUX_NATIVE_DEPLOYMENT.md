@@ -61,6 +61,7 @@ chmod 600 .env.linux
 | `DM_ALLOWED_OWNERS` | 允许 MCP 访问的业务模式白名单，逗号分隔 |
 | `DM_DENIED_SCHEMAS` | 禁止访问的系统模式，默认已包含 `SYS,SYSSSO,SYSAUDITOR,SYSJOB,SYSDBA,SYSCONFIG` |
 | `DM_REQUIRED_VERSION_PREFIX` | 版本前缀校验，默认 `V8`；留空表示跳过校验 |
+| `MCP_PORT` | 服务端口，默认 `8082`；同机已有 axis-oracle-mcp 等其他服务时改成空闲端口（如 `8084`），安装、自检与探测脚本都会按这里的取值执行 |
 
 数据库账号的权限最小集合：业务模式（表/视图）`SELECT`，以及
 `V$VERSION` 的 `SELECT`（用于启动自检）。**不要授予 DDL 或 DML 权限**，
@@ -134,5 +135,5 @@ wheel、保留 `/etc/axis-dameng-mcp/axis-dameng-mcp.env`。
 | 达梦加密模块报错（如 `-70089`） | 单元文件已通过 `LD_LIBRARY_PATH` 指向 wheel 内置的 `dmssl` 目录；`axis-dameng-mcp check` 会打印真实错误 |
 | 服务启动失败 | `journalctl -u axis-dameng-mcp -n 100 --no-pager`；常见原因是 `DM_PASSWORD` 未替换或 `DM_ALLOWED_OWNERS` 与 `DM_DENIED_SCHEMAS` 冲突 |
 | `Unable to determine the Dameng version` | 给业务账号授予 `V$VERSION` 的 `SELECT`，或把 `DM_REQUIRED_VERSION_PREFIX` 置空 |
-| 端口被占用 | `ss -lntp | grep 8082`；`install-linux-native.sh` 只能接管同名服务占用的端口 |
+| 端口被占用 | `ss -lntp | grep <端口>`；改 `.env.linux` 里的 `MCP_PORT` 换端口（脚本会跟随），或让占用方释放端口。安装脚本只允许接管同名服务占用的端口 |
 | 中文乱码 | 确认 `DM_ENCODING` 与数据库字符集匹配（UTF-8 库用 `UTF8`，GBK 库用 `GBK`） |

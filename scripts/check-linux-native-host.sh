@@ -34,14 +34,17 @@ fi
 available_kb="$(df -Pk /opt | awk 'NR==2 {print $4}')"
 if [[ "${available_kb:-0}" -ge 1048576 ]]; then ok "at least 1 GiB free under /opt"; else fail "at least 1 GiB free under /opt is required"; fi
 
-if ss -lnt 2>/dev/null | grep -qE '[:.]8082[[:space:]]'; then
+port="${MCP_PORT:-8082}"
+[[ "${port}" =~ ^[0-9]+$ ]] || port=8082
+
+if ss -lnt 2>/dev/null | grep -qE "[:.]${port}[[:space:]]"; then
     if systemctl is-active --quiet axis-dameng-mcp.service 2>/dev/null; then
-        info "TCP 8082 is used by the existing axis-dameng-mcp service and will be restarted"
+        info "TCP ${port} is used by the existing axis-dameng-mcp service and will be restarted"
     else
-        fail "TCP 8082 is already in use by another process"
+        fail "TCP ${port} is already in use by another process (set MCP_PORT in the env file to a free port)"
     fi
 else
-    ok "TCP port 8082 is free"
+    ok "TCP port ${port} is free"
 fi
 
 if systemctl is-active --quiet axis-dameng-mcp.service 2>/dev/null; then

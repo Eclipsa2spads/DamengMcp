@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 source_cidr="${1:-}"
-port="${2:-8082}"
+port="${2:-${MCP_PORT:-8082}}"
 
 [[ "$(id -u)" -eq 0 ]] || { echo "Run this script as root." >&2; exit 1; }
 [[ -n "${source_cidr}" ]] || {
