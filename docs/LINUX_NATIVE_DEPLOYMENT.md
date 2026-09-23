@@ -10,6 +10,10 @@
 服务以独立系统用户 `dameng-mcp` 运行，通过 systemd 托管，同时提供
 Streamable HTTP（`/mcp`）和旧版 HTTP+SSE（`/sse`、`/messages/`）。
 
+> 本文是**操作手册**，只管"怎么装"。
+> 环境定位、部署前置条件、达梦只读账号建号 SQL、验收标准与回滚要求见
+> [`DEPLOYMENT_STANDARD.md`](DEPLOYMENT_STANDARD.md)（部署规范），动手前先读它。
+
 ## 1. 构建离线包（在 Windows 构建机执行）
 
 ```powershell

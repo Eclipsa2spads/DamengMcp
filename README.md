@@ -92,8 +92,10 @@ dmPython wheel 自带达梦 DPI 与 DM SSL 库，无需安装达梦客户端；
     .\scripts\build-linux-native-bundle.ps1
 
 产物：`dist\dameng-mcp-linux-native-centos7-x86_64.tar.gz(.sha256)`。
-目标机的校验、配置、安装与运维步骤见
-[`docs/LINUX_NATIVE_DEPLOYMENT.md`](docs/LINUX_NATIVE_DEPLOYMENT.md)。
+
+动手前先读 [`docs/DEPLOYMENT_STANDARD.md`](docs/DEPLOYMENT_STANDARD.md)（部署规范：
+环境分层、前置条件、只读账号建号 SQL、验收标准、回滚与暴露面要求）；
+具体命令步骤见 [`docs/LINUX_NATIVE_DEPLOYMENT.md`](docs/LINUX_NATIVE_DEPLOYMENT.md)（操作手册）。
 
 ## 与 Oracle 版（axis-oracle-mcp）的差异
 

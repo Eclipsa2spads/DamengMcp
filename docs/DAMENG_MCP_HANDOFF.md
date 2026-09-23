@@ -78,14 +78,33 @@
 
 ## 4. 只读账号授权清单
 
-生产环境必须使用专用只读账号，示例（在达梦管理工具或 disql 中执行）：
+生产环境必须使用专用只读账号。以下 SQL 于 2026-09-23 在实机逐条验证过：
 
 ```sql
+-- 1) 建号即可连接，达梦不需要 GRANT CREATE SESSION（实测）
 CREATE USER MCP_READ IDENTIFIED BY "<强密码>";
-GRANT CREATE SESSION TO MCP_READ;
-GRANT SELECT ON APP_SCHEMA.<表或视图> TO MCP_READ;   -- 逐表授予，避免 SELECT ANY TABLE
-GRANT SELECT ON V$VERSION TO MCP_READ;                -- 启动自检需要
+
+-- 2) 逐表 / 逐视图授予 SELECT，不要图省事用 SELECT ANY TABLE
+GRANT SELECT ON APP_SCHEMA.<表或视图> TO MCP_READ;
 ```
+
+表或视图多的时候，先生成语句、核对无误再执行：
+
+```sql
+SELECT 'GRANT SELECT ON ' || OWNER || '.' || TABLE_NAME || ' TO MCP_READ;'
+  FROM ALL_TABLES WHERE OWNER = 'APP_SCHEMA';
+SELECT 'GRANT SELECT ON ' || OWNER || '.' || VIEW_NAME || ' TO MCP_READ;'
+  FROM ALL_VIEWS WHERE OWNER = 'APP_SCHEMA';
+```
+
+需要避开的三个坑（均为实测结论）：
+
+- **不需要额外字典权限**：新用户默认就能读 `V$VERSION`、`ID_CODE`、`CASE_SENSITIVE()`
+  以及全部 `ALL_*` 字典视图，无需 `SELECT ANY DICTIONARY`，也无需单独授 `V$VERSION`
+- **达梦没有模式级授权**：`GRANT SELECT ON SCHEMA <模式>` 报 `-2201 无效的数据库对象`，
+  `GRANT SELECT ON <模式>.*` 报 `-2007 语法分析出错`
+- **`GRANT SELECT ANY TABLE` 不推荐**：它会把 `V$SESSIONS` 这类动态性能视图一并放开，
+  数据库侧边界形同虚设（应用层仍会拦截，但少了一层防护）
 
 `.env` 中相应配置：
 
@@ -96,6 +115,9 @@ DM_DENIED_SCHEMAS=SYS,SYSSSO,SYSAUDITOR,SYSJOB,SYSDBA,SYSCONFIG
 ```
 
 注意：`DM_ALLOWED_OWNERS` 与 `DM_DENIED_SCHEMAS` 不得有交集，服务启动时会校验。
+
+完整的建号规范与三层只读防护说明见
+[`DEPLOYMENT_STANDARD.md`](DEPLOYMENT_STANDARD.md) §3。
 
 ## 5. 实机核实记录（2026-09-22）
 
@@ -125,9 +147,30 @@ ID_CODE `03134284336-20250117-257733-20132`。
 因此服务端实现采用：连接级 `access_mode` 兜底 + 每事务 `SET TRANSACTION READ ONLY`
 （先在连接上 `rollback()` 清空遗留事务，保证 SET 是首条语句）+ 内联整数的外层 `ROWNUM`。
 
+### 补充核实（2026-09-23）：Linux 实机部署与最小权限账号
+
+Linux 目标机为 CentOS（`V$INSTANCE.HOST_NAME=VM-0-8-centos`，2C2G），与达梦同机部署。
+
+| 项目 | 结果 |
+| --- | --- |
+| 离线包安装 | 自带 Miniconda + wheelhouse 全程无需外网；dmPython 2.5.38 内置 DPI 客户端导入成功 |
+| 启动预检 | `ready=true`、`DM Database Server 64 V8`、`caseSensitive=true`、UTF-8；预检写入被拒 `-6506` |
+| 双传输 | `/mcp`（协商 `2025-03-26`）与 `/sse`（协商 `2025-11-25`）均可用，7 个 `dm_*` 工具齐全 |
+| 中文链路 | 联表聚合返回中文字段值无乱码，`DECIMAL`/`BIGINT` 类型正确 |
+| 协议容错 | 请求 4 种 `protocolVersion` 均正常协商；不带 `Mcp-Session-Id` 调 `tools/list` 返回 400 `Missing session ID`（符合规范） |
+| 新用户默认权限 | 建号即可连接（**无需 `GRANT CREATE SESSION`**）；默认可读 `V$VERSION`、`ID_CODE`、`CASE_SENSITIVE()` 与全部 `ALL_*` 字典视图（**无需 `SELECT ANY DICTIONARY`**） |
+| 未授权访问 | 查未授权的表报 `-5504 没有[…]对象的查询权限`；建表报 `-5515 没有创建表权限` |
+| 授权语法 | 逐表 `GRANT SELECT ON 模式.表` 支持；`SELECT ANY TABLE` 支持但会一并放开 `V$SESSIONS` 等动态视图；`GRANT SELECT ON SCHEMA` 报 `-2201`；`GRANT SELECT ON 模式.*` 报 `-2007` |
+| 最小权限验收 | 用仅授 3 张表 SELECT 的账号跑完整链路，正向 6/6 通过、5 项拒绝用例全部被拒 |
+| 平台接入 | 平台在内网**连不到公网 IP**（`10.253.x` 网段出网为目的白名单，80/443 到该 IP 亦不通）；改用开发机中转（`10.242.2.115:8082`）后接入成功 |
+
+结论：最小权限账号完全满足服务运行要求，生产必须使用（见
+[`DEPLOYMENT_STANDARD.md`](DEPLOYMENT_STANDARD.md) §3）。
+
 ## 6. 平台注册与验收
 
-注册地址：`http://<host>:8082/mcp`（旧版 SSE 客户端用 `/sse`）。
+注册地址：`http://<host>:<MCP_PORT>/mcp`（旧版 SSE 客户端用 `/sse`）。
+端口由部署配置的 `MCP_PORT` 决定，默认 8082。
 
 验收命令：
 
