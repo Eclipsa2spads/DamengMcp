@@ -8,12 +8,21 @@ bundle_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 installer="${bundle_root}/scripts/install-linux-native.sh"
 env_target="${bundle_root}/.env.linux"
 denied_schemas="SYS,SYSSSO,SYSAUDITOR,SYSJOB,SYSDBA,SYSCONFIG"
-forbidden_accounts=(SYSDBA SYS SYSSSO SYSAUDITOR SYSJOB SYSCONFIG)
+system_accounts=(SYSDBA SYS SYSSSO SYSAUDITOR SYSJOB SYSCONFIG)
+
+if [[ -t 1 ]]; then
+    warn_color=$'\033[1;31m'
+    color_reset=$'\033[0m'
+else
+    warn_color=""
+    color_reset=""
+fi
 
 step() { echo; echo "==> $*"; }
 note() { echo "[信息] $*"; }
 ok() { echo "[通过] $*"; }
 die() { echo "[失败] $*" >&2; exit 1; }
+warn() { printf '%s[警告] %s%s\n' "${warn_color}" "$*" "${color_reset}" >&2; }
 
 usage() {
     cat <<'EOF'
@@ -83,7 +92,7 @@ prompt_text() {   # $1=提示语 $2=默认值；结果写入 value，读不到�
 read_value() {
     local label="$1" provided="$2" fallback="$3" validator="$4" hint="$5"
     if [[ -n "${provided}" ]]; then
-        "${validator}" "${provided}" || die "${label}「${provided}」不合法：${hint}"
+        "${validator}" "${provided}" || die "${label}「${provided}」不合法：${reason:-${hint}}"
         value="${provided}"
         return 0
     fi
@@ -92,7 +101,7 @@ read_value() {
         if "${validator}" "${value}"; then
             return 0
         fi
-        echo "  [!] ${hint}，请重新输入" >&2
+        echo "  [!] ${reason:-${hint}}，请重新输入" >&2
     done
 }
 
@@ -115,24 +124,52 @@ is_port() { [[ "$1" =~ ^[0-9]+$ ]] && (( $1 >= 1 && $1 <= 65535 )); }
 is_host() { [[ "$1" =~ ^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$ ]]; }
 is_identifier() { [[ "$1" =~ ^[A-Za-z][A-Za-z0-9_\$#]{0,127}$ ]]; }
 
+# 多条件校验把命中的那条原因写进 reason，报错时才不会一口气念一串要求
+reason=""
+
 is_account() {
-    local candidate="${1^^}" item
-    is_identifier "${1}" || return 1
-    for item in "${forbidden_accounts[@]}"; do
-        [[ "${candidate}" == "${item}" ]] && return 1
-    done
+    reason=""
+    if [[ -z "$1" ]]; then
+        reason="账号不能为空"
+        return 1
+    fi
+    if ! is_identifier "$1"; then
+        reason="账号名要以字母开头，只能含字母、数字、下划线、\$ 和 #"
+        return 1
+    fi
     return 0
+}
+
+is_system_account() {
+    local candidate="${1^^}" item
+    for item in "${system_accounts[@]}"; do
+        [[ "${candidate}" == "${item}" ]] && return 0
+    done
+    return 1
 }
 
 is_owners() {
     local item
-    [[ -n "$1" ]] || return 1
+    reason=""
+    if [[ -z "$1" ]]; then
+        reason="业务模式不能为空"
+        return 1
+    fi
     local IFS=','
     for item in $1; do
         item="${item// /}"
-        [[ -n "${item}" ]] || return 1
-        is_identifier "${item}" || return 1
-        [[ ",${denied_schemas}," == *",${item^^},"* ]] && return 1
+        if [[ -z "${item}" ]]; then
+            reason="逗号之间有空项"
+            return 1
+        fi
+        if ! is_identifier "${item}"; then
+            reason="「${item}」不是合法的模式名"
+            return 1
+        fi
+        if [[ ",${denied_schemas}," == *",${item^^},"* ]]; then
+            reason="「${item}」是系统模式，不能出现在这里"
+            return 1
+        fi
     done
     return 0
 }
@@ -176,8 +213,16 @@ dm_host="${value}"
 read_value "达梦端口" "${arg_port:-${DM_PORT:-}}" "5236" is_port "应为 1-65535 的端口号"
 dm_port="${value}"
 
-read_value "达梦只读账号" "${arg_user:-${DM_USER:-}}" "" is_account "不能为空；不能用 SYSDBA/SYS/SYSSSO/SYSAUDITOR 等系统账号"
+read_value "达梦只读账号" "${arg_user:-${DM_USER:-}}" "" is_account "账号名不合法"
 dm_user="${value^^}"
+
+system_account_used=0
+if is_system_account "${dm_user}"; then
+    system_account_used=1
+    warn "「${dm_user}」是达梦系统账号。用它接入等于把整个实例的权限交给服务进程："
+    warn "服务端会强制只读，但账号本身权限过高，一旦服务出问题，敞口是整库而不是几张表。"
+    warn "测试期可以继续；正式交付前请换成只读业务账号（只授业务表/视图的 SELECT）。"
+fi
 
 dm_password="${DM_PASSWORD:-}"
 if (( password_stdin )); then
@@ -186,7 +231,12 @@ fi
 read_secret "达梦密码（不回显）" "${dm_password}"
 dm_password="${value}"
 
-read_value "允许访问的业务模式（逗号分隔）" "${arg_owners:-${DM_ALLOWED_OWNERS:-}}" "${dm_user}" is_owners "不能为空；只用业务模式，且不能与系统模式 ${denied_schemas} 重合"
+if (( system_account_used )); then
+    owners_default=""          # 系统账号名不能当业务模式用
+else
+    owners_default="${dm_user}"
+fi
+read_value "允许访问的业务模式（逗号分隔）" "${arg_owners:-${DM_ALLOWED_OWNERS:-}}" "${owners_default}" is_owners "只能用业务模式，且不能与系统模式 ${denied_schemas} 重合"
 dm_owners="$(printf '%s' "${value}" | tr 'a-z' 'A-Z' | tr -d ' ')"
 
 read_value "MCP 服务端口" "${arg_mcp_port:-${MCP_PORT:-}}" "8082" is_free_service_port "应为 1-65535 且本机未被占用（ss -lntp 可查看占用）"
@@ -270,6 +320,10 @@ cat <<EOF
   配置文件      ${env_target}
 
 EOF
+
+if (( system_account_used )); then
+    warn "当前用的达梦账号是系统账号 ${dm_user}，与只读原则不符；正式交付前请换成只读业务账号。"
+fi
 
 if (( ! assume_yes )); then
     is_interactive || die "非交互模式下请加 --yes 确认安装"
