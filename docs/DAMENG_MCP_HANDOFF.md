@@ -116,8 +116,8 @@ DM_DENIED_SCHEMAS=SYS,SYSSSO,SYSAUDITOR,SYSJOB,SYSDBA,SYSCONFIG
 
 注意：`DM_ALLOWED_OWNERS` 与 `DM_DENIED_SCHEMAS` 不得有交集，服务启动时会校验。
 
-完整的建号规范与三层只读防护说明见
-[`DEPLOYMENT_STANDARD.md`](DEPLOYMENT_STANDARD.md) §3。
+完整的建号步骤与部署流程见
+[`LINUX_NATIVE_DEPLOYMENT.md`](LINUX_NATIVE_DEPLOYMENT.md) 第 1 节。
 
 ## 5. 实机核实记录（2026-09-22）
 
@@ -164,8 +164,7 @@ Linux 目标机为 CentOS（`V$INSTANCE.HOST_NAME=VM-0-8-centos`，2C2G），与
 | 最小权限验收 | 用仅授 3 张表 SELECT 的账号跑完整链路，正向 6/6 通过、5 项拒绝用例全部被拒 |
 | 平台接入 | 平台在内网**连不到公网 IP**（`10.253.x` 网段出网为目的白名单，80/443 到该 IP 亦不通）；改用开发机中转（`10.242.2.115:8082`）后接入成功 |
 
-结论：最小权限账号完全满足服务运行要求，生产必须使用（见
-[`DEPLOYMENT_STANDARD.md`](DEPLOYMENT_STANDARD.md) §3）。
+结论：最小权限账号完全满足服务运行要求，生产必须使用。
 
 ## 6. 平台注册与验收
 
