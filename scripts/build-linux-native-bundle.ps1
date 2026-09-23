@@ -46,7 +46,7 @@ Copy-Item -Path (Join-Path $projectRoot "tools\*.py") -Destination (Join-Path $s
 foreach ($script in @("check_dameng.py", "probe_mcp.py", "probe_sse.py", "probe-linux-native.sh")) {
     Copy-Item -LiteralPath (Join-Path $projectRoot "scripts\$script") -Destination (Join-Path $stageRoot "app\scripts\$script")
 }
-foreach ($script in @("install-linux-native.sh", "check-linux-native-host.sh", "axis-dameng-mcp.sh", "configure-firewall-linux.sh")) {
+foreach ($script in @("install-linux-native.sh", "quick-install.sh", "check-linux-native-host.sh", "axis-dameng-mcp.sh", "configure-firewall-linux.sh")) {
     Copy-Item -LiteralPath (Join-Path $projectRoot "scripts\$script") -Destination (Join-Path $stageRoot "scripts\$script")
 }
 

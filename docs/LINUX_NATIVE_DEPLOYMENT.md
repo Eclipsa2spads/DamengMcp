@@ -53,6 +53,26 @@ Streamable HTTP（`/mcp`）与 HTTP+SSE（`/sse`、`/messages/`）两种传输�
 
 ## 3. 部署
 
+### 3.0 一键安装（可选）
+
+解压后可以直接用向导，它会依次问 6 项必填配置，校验后写成 `.env.linux`，
+再调用 3.3 的安装脚本：
+
+```bash
+bash scripts/quick-install.sh
+```
+
+也支持非交互（无人值守），答案放参数或环境变量里：
+
+```bash
+DM_PASSWORD='<密码>' bash scripts/quick-install.sh --yes \
+    --host 10.1.2.3 --user DM_MCP_READ --owners APP_SCHEMA --mcp-port 8084
+```
+
+向导只收集配置、不重复安装逻辑；6 项以外的参数一律用默认值。不想要向导就按下面
+3.1–3.4 手工执行。密码不能用命令行参数传（会进 shell 历史），只能用
+`DM_PASSWORD` 环境变量、`--password-stdin` 或交互输入。
+
 ### 3.1 传输并校验
 
 构建机上执行：
@@ -140,29 +160,6 @@ axis-dameng-mcp probe      # 协议握手 + 列出 7 个工具 + 真实查询一
 
 配置改动后重启生效：`axis-dameng-mcp restart`。
 
-### 达梦只读账号
-
-```sql
-CREATE USER DM_MCP_READ IDENTIFIED BY "<强密码>";     -- 建号即可连接
-GRANT SELECT ON APP_SCHEMA.SOME_TABLE TO DM_MCP_READ;  -- 逐表 / 逐视图授予 SELECT
-```
-
-表多时先生成语句、核对无误再执行：
-
-```sql
-SELECT 'GRANT SELECT ON ' || OWNER || '.' || TABLE_NAME || ' TO DM_MCP_READ;'
-  FROM ALL_TABLES WHERE OWNER = 'APP_SCHEMA';
-SELECT 'GRANT SELECT ON ' || OWNER || '.' || VIEW_NAME || ' TO DM_MCP_READ;'
-  FROM ALL_VIEWS WHERE OWNER = 'APP_SCHEMA';
-```
-
-三点实测结论：
-
-- 新用户默认可读 `V$VERSION`、`ID_CODE` 与全部 `ALL_*` 字典视图，
-  **无需** `SELECT ANY DICTIONARY`，**无需**单独授 `V$VERSION`
-- 达梦没有模式级授权：`GRANT SELECT ON SCHEMA <模式>` 报 `-2201`，
-  `GRANT SELECT ON <模式>.*` 报 `-2007`，只能逐表/逐视图授权
-- 不要用 `SELECT ANY TABLE`：它会把 `V$SESSIONS` 等动态性能视图一并放开
 
 ## 5. 指令
 
