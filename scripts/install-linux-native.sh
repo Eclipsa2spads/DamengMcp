@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+umask 022   # 固定权限掩码：安装出的运行时与配置必须让 dameng-mcp 用户可读可执行，
+            # 不依赖调用方的 umask（曾因调用方 umask 077 导致服务 203/EXEC）
 
 install_root=/opt/axis-dameng-mcp
 app_root=${install_root}/app

@@ -273,8 +273,12 @@ if [[ -e "${env_target}" ]]; then
 fi
 
 password_literal="$(quote_value "${dm_password}")"
-umask 077
-cat > "${env_target}" <<EOF
+# umask 只在写这个文件时收紧；不能泄漏给后面调用的安装脚本，
+# 否则 Miniconda 解包出的 python 目录会变成 700 root，systemd 以 dameng-mcp
+# 运行时报 203/EXEC Permission denied。
+(
+    umask 077
+    cat > "${env_target}" <<EOF
 # 由 scripts/quick-install.sh 生成于 $(date '+%Y-%m-%d %H:%M:%S')
 DM_HOST=${dm_host}
 DM_PORT=${dm_port}
@@ -301,6 +305,7 @@ MCP_PATH=/mcp
 MCP_SSE_PATH=/sse
 MCP_MESSAGE_PATH=/messages/
 EOF
+)
 chmod 600 "${env_target}"
 ok "已写入 ${env_target}（权限 600）"
 note "连接池、超时、返回上限等参数已使用默认值，需要调整就改这个文件后重跑安装。"
