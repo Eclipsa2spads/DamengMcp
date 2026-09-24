@@ -8,7 +8,15 @@ ok() { printf '[OK] %s\n' "$1"; }
 fail() { printf '[FAIL] %s\n' "$1" >&2; failed=1; }
 info() { printf '[INFO] %s\n' "$1"; }
 
-if [[ "$(uname -m)" == "x86_64" ]]; then ok "x86_64 architecture"; else fail "x86_64 architecture is required"; fi
+bundle_arch="$(ls "${bundle_root}"/vendor/Miniconda3-*-Linux-*.sh 2>/dev/null | head -n 1 | sed -n 's/.*-Linux-\(.*\)\.sh$/\1/p')"
+host_arch="$(uname -m)"
+if [[ -z "${bundle_arch}" ]]; then
+    info "cannot determine the architecture from vendor/ (bundle integrity check will cover it)"
+elif [[ "${host_arch}" == "${bundle_arch}" ]]; then
+    ok "${bundle_arch} architecture"
+else
+    fail "this bundle targets ${bundle_arch}, but the host is ${host_arch}"
+fi
 
 glibc_version="$(ldd --version 2>/dev/null | head -n 1 | grep -oE '[0-9]+\.[0-9]+' | tail -n 1 || true)"
 if [[ -n "${glibc_version}" ]] && awk -v value="${glibc_version}" 'BEGIN { split(value,v,"."); exit !((v[1] > 2) || (v[1] == 2 && v[2] >= 17)) }'; then

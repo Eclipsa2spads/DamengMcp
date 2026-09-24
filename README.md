@@ -8,7 +8,7 @@
 | 项 | 要求 |
 |---|---|
 | 达梦 | DM8（`V$VERSION` 为 `DM Database Server 64 V8`） |
-| Linux | CentOS 7 / 8 x86_64，glibc ≥ 2.17，systemd。用离线原生包部署，目标机**不需要** Python、外网、Docker 或达梦客户端 |
+| Linux | x86_64（CentOS 7 / 8 等）或 aarch64（麒麟 V10 等 ARM64），glibc ≥ 2.17，systemd。用**对应架构**的离线原生包部署，目标机**不需要** Python、外网、Docker 或达梦客户端 |
 | Windows | Python 3.11 x64（dmPython 的 Windows wheel 自带达梦 DPI） |
 | 服务形态 | 系统用户 `dameng-mcp` + systemd 托管；同时提供 Streamable HTTP 与旧版 HTTP+SSE |
 
@@ -55,16 +55,20 @@ http://<host>:8082/messages/  # SSE 消息端点（由 SSE 握手返回）
 
 ## 部署
 
-### Linux（CentOS 7 / 8 离线原生包）
+### Linux（离线原生包，x86_64 / aarch64）
 
 在 Windows 构建机产出离线包（首次需要一次联网下载）：
 
 ```powershell
-.\scripts\Download-DmWheels.ps1 -WithMiniconda
+.\scripts\Download-DmWheels.ps1 -WithMiniconda                          # x86_64
 .\scripts\build-linux-native-bundle.ps1
+
+.\scripts\Download-DmWheels.ps1 -Architecture aarch64 -WithMiniconda    # ARM64
+.\scripts\build-linux-native-bundle.ps1 -Architecture aarch64
 ```
 
-产物为 `dist\dameng-mcp-linux-native-centos7-x86_64.tar.gz(.sha256)`。
+产物为 `dist\dameng-mcp-linux-native-centos7-x86_64.tar.gz(.sha256)`（x86_64）
+或 `dist\dameng-mcp-linux-native-aarch64.tar.gz(.sha256)`（ARM64）。
 
 目标机的环境要求、部署步骤、配置项与工具指令见
 [`docs/LINUX_NATIVE_DEPLOYMENT.md`](docs/LINUX_NATIVE_DEPLOYMENT.md)——

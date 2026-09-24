@@ -35,13 +35,16 @@ mcp_port="${mcp_port:-8082}"
 [[ "${mcp_port}" =~ ^[0-9]+$ ]] && (( mcp_port >= 1 && mcp_port <= 65535 )) || die "MCP_PORT must be a valid TCP port."
 
 for required in \
-    vendor/Miniconda3-py311_24.3.0-0-Linux-x86_64.sh \
     app/server.py app/requirements.txt \
     deploy/systemd/axis-dameng-mcp.service SHA256SUMS; do
     [[ -f "${bundle_root}/${required}" ]] || die "Offline bundle is missing ${required}."
 done
 
-step "Checking CentOS 7 host and bundle integrity"
+# 自带运行时按架构命名（x86_64 / aarch64），这里按实际存在的那个取
+miniconda_installer="$(ls "${bundle_root}"/vendor/Miniconda3-*-Linux-*.sh 2>/dev/null | head -n 1 || true)"
+[[ -n "${miniconda_installer}" ]] || die "Offline bundle is missing the bundled Python runtime under vendor/."
+
+step "Checking the host and the offline bundle integrity"
 MCP_PORT="${mcp_port}" bash "${bundle_root}/scripts/check-linux-native-host.sh"
 
 if systemctl is-active --quiet "${service_name}" 2>/dev/null; then
@@ -55,7 +58,6 @@ id -u dameng-mcp >/dev/null 2>&1 || useradd --system --gid dameng-mcp --home-dir
 install -d -m 0755 -o root -g dameng-mcp "${install_root}" "${app_root}"
 install -d -m 0750 -o root -g dameng-mcp "${config_root}"
 
-miniconda_installer=${bundle_root}/vendor/Miniconda3-py311_24.3.0-0-Linux-x86_64.sh
 if [[ ! -x "${python_root}/bin/python" ]]; then
     [[ ! -e "${python_root}" ]] || die "${python_root} exists but does not contain a usable Python runtime."
     step "Installing the bundled Python 3.11 runtime"

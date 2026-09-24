@@ -6,14 +6,14 @@
 
 | 项 | 要求 |
 |---|---|
-| 目标机 | CentOS 7 / 8 x86_64，glibc ≥ 2.17，systemd，root，`/opt` 剩余空间 ≥ 1 GiB |
+| 目标机 | x86_64（CentOS 7 / 8 等）或 aarch64（麒麟 V10 等 ARM64），glibc ≥ 2.17，systemd，root，`/opt` 剩余空间 ≥ 1 GiB。**按目标机架构选对应架构的离线包** |
 | 目标机需自备 | **什么都不用**：不需要 Python，不需要外网，不需要 Docker，不需要达梦客户端 |
 | 达梦 | DM8（`V$VERSION` 为 `DM Database Server 64 V8`） |
 
 离线包自带：
 
 - Miniconda3 Python 3.11 运行时（`vendor/`）
-- 全部依赖 wheel（`wheelhouse/`，`manylinux2014_x86_64`，glibc ≥ 2.17）
+- 全部依赖 wheel（`wheelhouse/`，`manylinux2014_x86_64` 或 `manylinux2014_aarch64`，glibc ≥ 2.17）
 - `dmPython 2.5.38`，wheel 内含达梦 DPI 客户端（`libdmdpi`）与 DM SSL 库
 - 服务代码、systemd 单元、安装与运维脚本
 
@@ -75,18 +75,22 @@ DM_PASSWORD='<密码>' bash scripts/quick-install.sh --yes \
 
 ### 3.1 传输并校验
 
+包名按目标机架构选：x86_64 用 `dameng-mcp-linux-native-centos7-x86_64`，
+aarch64 用 `dameng-mcp-linux-native-aarch64`（下文以 `PKG` 代指）。
+
 构建机上执行：
 
 ```bash
-scp dameng-mcp-linux-native-centos7-x86_64.tar.gz* root@<target>:/root/
+PKG=dameng-mcp-linux-native-centos7-x86_64      # aarch64 机器改成 ...-aarch64
+scp ${PKG}.tar.gz* root@<target>:/root/
 ```
 
 目标机上执行：
 
 ```bash
 cd /root
-sha256sum -c dameng-mcp-linux-native-centos7-x86_64.tar.gz.sha256   # 必须输出 OK
-tar -xzf dameng-mcp-linux-native-centos7-x86_64.tar.gz
+sha256sum -c ${PKG}.tar.gz.sha256   # 必须输出 OK
+tar -xzf ${PKG}.tar.gz
 cd dameng-mcp-linux-native
 ```
 

@@ -31,12 +31,18 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("wheelhouse", type=Path)
     parser.add_argument("requirements", type=Path)
+    parser.add_argument("--architecture", default="x86_64", choices=["x86_64", "aarch64"])
     args = parser.parse_args()
 
+    wrong_arch = "aarch64" if args.architecture == "x86_64" else "x86_64"
     packages: dict[str, dict[str, object]] = {}
     for wheel in args.wheelhouse.glob("*.whl"):
         if "win32" in wheel.name or "win_amd64" in wheel.name:
             raise SystemExit(f"Windows wheel found in Linux wheelhouse: {wheel.name}")
+        if wrong_arch in wheel.name:
+            raise SystemExit(
+                f"{wrong_arch} wheel found in the {args.architecture} wheelhouse: {wheel.name}"
+            )
         metadata = read_metadata(wheel)
         name = str(metadata["name"])
         if name in packages:
@@ -47,7 +53,7 @@ def main() -> None:
     environment.update(
         {
             "implementation_name": "cpython",
-            "platform_machine": "x86_64",
+            "platform_machine": args.architecture,
             "platform_system": "Linux",
             "python_full_version": "3.11.8",
             "python_version": "3.11",
